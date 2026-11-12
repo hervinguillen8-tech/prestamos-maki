@@ -8,6 +8,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <!-- SDKs de Firebase (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
   <style>
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
@@ -584,8 +589,23 @@
     </div>
   </div>
 
-  <!-- SCRIPT LOGIC -->
+  <!-- SCRIPT LOGIC CON FIREBASE CLOUD SYNC -->
   <script>
+    // 🔗 CONFIGURACIÓN DE FIREBASE (Reemplaza con tus datos reales de la consola de Firebase)
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "tu-proyecto.firebaseapp.com",
+      projectId: "tu-proyecto",
+      storageBucket: "tu-proyecto.appspot.com",
+      messagingSenderId: "tu-id",
+      appId: "tu-app-id"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const docRef = db.collection("datos_maki").doc("principal");
+
     let APP_DATA = {
       capitalTotal: 0,
       cajeroActual: 'Hervin (Mañana)',
@@ -616,8 +636,8 @@
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      cargarDatosDesdeStorage();
+    document.addEventListener('DOMContentLoaded', async () => {
+      await cargarDatosDesdeStorage();
       establecerFechaHoyInput();
       actualizarInterfazCompleta();
       lucide.createIcons();
@@ -633,11 +653,11 @@
       }
     }
 
-    function cargarDatosDesdeStorage() {
-      const datosGuardados = localStorage.getItem('PRESTAMOS_MAKI_DATA') || localStorage.getItem('PRESTAMOS_APP_DATA_PROMAX_INE');
-      if (datosGuardados) {
-        try {
-          APP_DATA = JSON.parse(datosGuardados);
+    async function cargarDatosDesdeStorage() {
+      try {
+        const doc = await docRef.get();
+        if (doc.exists) {
+          APP_DATA = doc.data();
           if (!APP_DATA.plantillas) {
             APP_DATA.plantillas = {
               contrato: "¡HOLA {nombre}! 📄✍️\nTu crédito en Préstamos Maki ha sido aprobado (Folio #{folio}):\n- Monto: ${monto}\n- Total: ${total}\n- Cuota: ${cuota} ({frecuencia})\n- Primer Cobro: {primerCobro}\n\nTe adjuntamos tu contrato oficial en PDF. ¡Gracias por tu confianza!",
@@ -646,15 +666,34 @@
           }
           if (!APP_DATA.cajeroActual) APP_DATA.cajeroActual = 'Hervin (Mañana)';
           if (typeof APP_DATA.contadorFolio !== 'number') APP_DATA.contadorFolio = APP_DATA.prestamos.length;
-        } catch(e) { console.error(e); }
+        } else {
+          // Si no existe en la nube, revisamos si hay respaldo local para subirlo por primera vez
+          const datosLocal = localStorage.getItem('PRESTAMOS_MAKI_DATA');
+          if (datosLocal) {
+            APP_DATA = JSON.parse(datosLocal);
+            await docRef.set(APP_DATA);
+          }
+        }
+      } catch(e) {
+        console.error("Error al cargar de Firebase, usando respaldo local:", e);
+        const datosGuardados = localStorage.getItem('PRESTAMOS_MAKI_DATA');
+        if (datosGuardados) { APP_DATA = JSON.parse(datosGuardados); }
       }
+      
       document.getElementById('tpl-contrato').value = APP_DATA.plantillas.contrato;
       document.getElementById('tpl-recordatorio').value = APP_DATA.plantillas.recordatorio;
       actualizarBotonCajeroUI();
     }
 
     function guardarDatosEnStorage() {
+      // Guardar localmente como respaldo inmediato
       localStorage.setItem('PRESTAMOS_MAKI_DATA', JSON.stringify(APP_DATA));
+      
+      // Sincronizar en la nube con Firebase Firestore en tiempo real
+      docRef.set(APP_DATA)
+        .then(() => { console.log("Sincronizado en la nube con éxito"); })
+        .catch((error) => { console.error("Error al sincronizar con Firebase: ", error); });
+
       actualizarInterfazCompleta();
     }
 
