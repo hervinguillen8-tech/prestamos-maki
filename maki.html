@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Préstamos Maki - Gestor Financiero con INE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    @media print {
+      body * { visibility: hidden; }
+      #printable-ticket, #printable-ticket * { visibility: visible; }
+      #printable-ticket { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body class="h-full text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="bg-gradient-to-tr from-emerald-600 to-teal-400 p-2.5 rounded-xl text-slate-950 shadow-lg shadow-emerald-500/20">
+            <i data-lucide="wallet" class="w-6 h-6 stroke-[2.5]"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Préstamos Maki
+            </h1>
+            <p id="header-cajero-actual" class="text-xs text-emerald-400 font-medium">Turno: Mañana (Hervin)</p>
+          </div>
+        </div>
+
+        <div class="hidden sm:flex items-center gap-4 bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800">
+          <div class="text-right">
+            <span class="text-[10px] uppercase font-semibold text-slate-400 block tracking-wider">Caja Disponible</span>
+            <span id="header-caja" class="text-sm font-bold text-emerald-400">$0.00</span>
+          </div>
+          <button onclick="abrirModalCapital()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-1.5 rounded-lg border border-slate-700 transition" title="Ajustar Caja">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="cambiarCajeroActivo()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-3 py-2 rounded-xl text-xs transition border border-slate-700 flex items-center gap-1.5" title="Cambiar Turno / Cajero">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span id="btn-cambiar-cajero-txt">Hervin (Mañana)</span>
+          </button>
+          <button onclick="abrirModalNuevoPrestamo()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition shadow-lg shadow-emerald-600/25 text-sm">
+            <i data-lucide="plus-circle" class="w-4 h-4 stroke-[2.5]"></i>
+            <span>Nuevo Préstamo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-slate-900/60 border-b border-slate-800 backdrop-blur-md sticky top-16 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-2 sm:space-x-8 overflow-x-auto py-2 scrollbar-none">
+        <button onclick="cambiarTab('dashboard')" id="tab-btn-dashboard" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-emerald-400 bg-emerald-950/40 border border-emerald-800/50">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Resumen General</span>
+        </button>
+        <button onclick="cambiarTab('ruta')" id="tab-btn-ruta" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="map" class="w-4 h-4"></i><span>Ruta por Zonas</span>
+          <span id="badge-hoy" class="hidden bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="cambiarTab('caja')" id="tab-btn-caja" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="arrow-left-right" class="w-4 h-4"></i><span>Libro de Caja</span>
+        </button>
+        <button onclick="cambiarTab('clientes')" id="tab-btn-clientes" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="users" class="w-4 h-4"></i><span>Mis Clientes & INE</span>
+        </button>
+        <button onclick="cambiarTab('prestamos')" id="tab-btn-prestamos" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="file-text" class="w-4 h-4"></i><span>Historial & Contratos</span>
+        </button>
+        <button onclick="cambiarTab('config')" id="tab-btn-config" class="tab-btn flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+          <i data-lucide="settings" class="w-4 h-4"></i><span>Plantillas & Respaldos</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content space-y-6">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs uppercase tracking-wider font-semibold text-emerald-400">Capital de Trabajo — Préstamos Maki</span>
+              <button onclick="abrirModalCapital()" class="text-slate-400 hover:text-white transition"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+            <h2 id="dash-capital-total" class="text-3xl sm:text-4xl font-extrabold text-white mt-1">$0.00 MXN</h2>
+            <p class="text-xs text-slate-400 mt-1">Fondo asignado para préstamos</p>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl">
+              <span class="text-[11px] text-slate-400 block font-medium">Disponible</span>
+              <span id="dash-caja-disponible" class="text-lg font-bold text-emerald-400">$0.00</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl">
+              <span class="text-[11px] text-slate-400 block font-medium">Prestado en Calle</span>
+              <span id="dash-prestado-calle" class="text-lg font-bold text-blue-400">$0.00</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl col-span-2 sm:col-span-1">
+              <span class="text-[11px] text-slate-400 block font-medium">Ganancia Cobrada</span>
+              <span id="dash-ganancia-cobrada" class="text-lg font-bold text-amber-400">$0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Clientes Activos</p>
+            <h3 id="dash-clientes-activos" class="text-2xl font-bold text-slate-100 mt-1">0</h3>
+            <p id="dash-total-clientes" class="text-xs text-slate-500 mt-0.5">0 registrados</p>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl text-blue-400"><i data-lucide="users" class="w-6 h-6"></i></div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cobros Pendientes Hoy</p>
+            <h3 id="dash-cobros-hoy" class="text-2xl font-bold text-amber-400 mt-1">0</h3>
+            <p id="dash-monto-hoy" class="text-xs text-slate-400 mt-0.5">Por cobrar: $0.00</p>
+          </div>
+          <div class="bg-amber-950/50 border border-amber-800/40 p-3 rounded-xl text-amber-400"><i data-lucide="clock" class="w-6 h-6"></i></div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cartera Vencida (Mora)</p>
+            <h3 id="dash-clientes-mora" class="text-2xl font-bold text-rose-400 mt-1">0</h3>
+            <p id="dash-monto-mora" class="text-xs text-rose-500/80 mt-0.5">$0.00 en atraso</p>
+          </div>
+          <div class="bg-rose-950/50 border border-rose-800/40 p-3 rounded-xl text-rose-400"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Préstamos Liquidados</p>
+            <h3 id="dash-prestamos-liquidados" class="text-2xl font-bold text-emerald-400 mt-1">0</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Finalizados con éxito</p>
+          </div>
+          <div class="bg-emerald-950/50 border border-emerald-800/40 p-3 rounded-xl text-emerald-400"><i data-lucide="check-circle-2" class="w-6 h-6"></i></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-base text-white flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-5 h-5 text-emerald-400"></i> Proyección de Cobros (Próximos 7 días)
+          </h3>
+          <span class="text-xs text-slate-400">Estimado de entradas</span>
+        </div>
+        <div id="proyeccion-cobros-container" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: RUTA DE COBRO AGRUPADA POR ZONAS -->
+    <section id="tab-ruta" class="tab-content hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h3 class="font-bold text-lg text-white">Ruta de Cobro Agrupada por Zonas</h3>
+          <p class="text-xs text-slate-400">Organiza tus visitas callejeras por colonia o sector</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="filtro-zona-ruta" onchange="renderizarRutaCobro()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none">
+            <option value="todas">Todas las Zonas</option>
+          </select>
+          <span id="fecha-actual-badge" class="bg-slate-800 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl text-slate-300">-- / -- / ----</span>
+          <button onclick="enviarRecordatoriosWhatsAppMasivo()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i> Masivo Hoy
+          </button>
+        </div>
+      </div>
+      <div id="contenedor-ruta-cobros" class="space-y-4"></div>
+    </section>
+
+    <!-- TAB 3: LIBRO DE CAJA CON CONTROL DE TURNOS -->
+    <section id="tab-caja" class="tab-content hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h3 class="font-bold text-lg text-white">Libro de Caja y Turnos</h3>
+          <p class="text-xs text-slate-400">Historial detallado con desglose de cajero (Hervin / Hiromi)</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="filtro-caja-tipo" onchange="renderizarLibroCaja()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none">
+            <option value="todos">Todos los movimientos</option>
+            <option value="ingreso">Solo Ingresos (Abonos)</option>
+            <option value="salida">Solo Salidas (Préstamos)</option>
+          </select>
+          <button onclick="descargarCorteCajaPDF()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Corte PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-950 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-4">Fecha y Hora</th>
+                <th class="p-4">Cajero / Turno</th>
+                <th class="p-4">Tipo</th>
+                <th class="p-4">Concepto / Detalle</th>
+                <th class="p-4 text-right">Monto</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-libro-caja" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: MIS CLIENTES & INE -->
+    <section id="tab-clientes" class="tab-content hidden space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-500"></i>
+          <input type="text" id="input-buscar-cliente" oninput="renderizarClientes()" placeholder="Buscar cliente por nombre, teléfono o zona..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+          <button onclick="filtrarClientes('todos')" id="filter-btn-todos" class="filter-btn bg-emerald-600 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold transition">Todos</button>
+          <button onclick="filtrarClientes('activos')" id="filter-btn-activos" class="filter-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-medium transition">Al Día</button>
+          <button onclick="filtrarClientes('mora')" id="filter-btn-mora" class="filter-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-medium transition">En Mora</button>
+          <button onclick="filtrarClientes('liquidados')" id="filter-btn-liquidados" class="filter-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-medium transition">Liquidados</button>
+        </div>
+      </div>
+      <div id="contenedor-lista-clientes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- TAB 5: HISTORIAL DE PRÉSTAMOS & CONTRATOS -->
+    <section id="tab-prestamos" class="tab-content hidden space-y-4">
+      <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-lg text-white">Historial de Todos los Préstamos y Contratos</h3>
+          <p class="text-xs text-slate-400">Consulta créditos, re-descarga contratos PDF y verifica el archivo general</p>
+        </div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-950 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-4">Folio</th>
+                <th class="p-4">Cliente</th>
+                <th class="p-4">Monto Prestado</th>
+                <th class="p-4">Total a Pagar</th>
+                <th class="p-4">Saldo Restante</th>
+                <th class="p-4">Modalidad</th>
+                <th class="p-4">Próximo Cobro</th>
+                <th class="p-4">Estado</th>
+                <th class="p-4 text-right">Contrato / Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-historial-prestamos" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: PLANTILLAS & RESPALDOS -->
+    <section id="tab-config" class="tab-content hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2"><i data-lucide="message-square" class="w-5 h-5 text-emerald-400"></i> Plantillas de Mensajes de WhatsApp</h3>
+          <p class="text-xs text-slate-400 mt-1">Personaliza el mensaje que acompaña el envío del contrato y recordatorios.</p>
+        </div>
+
+        <div class="space-y-3 pt-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Plantilla de WhatsApp (Nuevo Préstamo / Contrato Adjunto):</label>
+            <textarea id="tpl-contrato" rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"></textarea>
+            <p class="text-[10px] text-slate-500 mt-1">Variables disponibles: {folio}, {nombre}, {monto}, {total}, {cuota}, {frecuencia}, {numCuotas}, {primerCobro}</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Plantilla de Recordatorio de Cobro (Hoy):</label>
+            <textarea id="tpl-recordatorio" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"></textarea>
+          </div>
+          <button onclick="guardarPlantillasConfig()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition">Guardar Plantillas</button>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2"><i data-lucide="download-cloud" class="w-5 h-5 text-emerald-400"></i> Copia de Seguridad</h3>
+          <p class="text-xs text-slate-400 mt-1">Guarda tu información o restáurala en otro dispositivo.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <button onclick="exportarDatosJSON()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-4 rounded-xl flex items-center gap-3 transition text-left">
+            <div class="bg-emerald-500/10 text-emerald-400 p-2.5 rounded-lg border border-emerald-500/20"><i data-lucide="download" class="w-5 h-5"></i></div>
+            <div><span class="font-bold text-sm block">Exportar JSON</span><span class="text-xs text-slate-400">Descarga respaldo</span></div>
+          </button>
+          <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 p-4 rounded-xl flex items-center gap-3 transition cursor-pointer">
+            <div class="bg-blue-500/10 text-blue-400 p-2.5 rounded-lg border border-blue-500/20"><i data-lucide="upload" class="w-5 h-5"></i></div>
+            <div><span class="font-bold text-sm block">Importar Respaldo</span><span class="text-xs text-slate-400">Carga archivo guardado</span></div>
+            <input type="file" id="input-importar-json" onchange="importarDatosJSON(event)" class="hidden" accept=".json">
+          </label>
+        </div>
+      </div>
+
+      <div class="bg-rose-950/20 border border-rose-900/50 p-6 rounded-2xl space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-rose-400 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Zona de Peligro</h3>
+          <p class="text-xs text-slate-400 mt-1">Borrar todos los datos del sistema en este navegador.</p>
+        </div>
+        <button onclick="vaciarBaseDeDatosCompleta()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Vaciar Base de Datos
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: AJUSTAR CAPITAL -->
+  <div id="modal-capital" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="dollar-sign" class="w-5 h-5 text-emerald-400"></i> Ajustar Capital</h3>
+        <button onclick="cerrarModalCapital()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="guardarNuevoCapital(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Monto de Capital Total ($)</label>
+          <input type="number" id="input-monto-capital" step="0.01" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalCapital()" class="px-4 py-2 text-xs text-slate-400 hover:bg-slate-800 rounded-xl">Cancelar</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVO PRÉSTAMO CON FOTO INE Y ZONA -->
+  <div id="modal-nuevo-prestamo" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="user-plus" class="w-5 h-5 text-emerald-400"></i> Registrar Nuevo Préstamo — Préstamos Maki</h3>
+        <button onclick="cerrarModalNuevoPrestamo()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form onsubmit="crearNuevoPrestamo(event)" class="space-y-4">
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Datos del Cliente, Zona & INE</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Nombre Completo *</label>
+              <input type="text" id="np-nombre" required placeholder="Ej. Juan Pérez" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Teléfono (WhatsApp) *</label>
+              <input type="tel" id="np-telefono" required placeholder="Ej. 9611234567" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Zona / Colonia *</label>
+              <input type="text" id="np-zona" required placeholder="Ej. Centro, Terán, Las Flores" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Nombre del Aval / Fiador</label>
+              <input type="text" id="np-aval" placeholder="Ej. Carlos Pérez" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Dirección Exacta</label>
+              <input type="text" id="np-direccion" placeholder="Ej. Calle Central #123" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="sm:col-span-2 bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+              <label class="block text-xs font-semibold text-emerald-400 uppercase flex items-center gap-1.5">
+                <i data-lucide="camera" class="w-4 h-4"></i> Fotografía de la INE / Identificación Oficial
+              </label>
+              <input type="file" id="np-foto-ine" accept="image/*" capture="environment" onchange="procesarFotoINE(event)" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-emerald-400 hover:file:bg-slate-700 cursor-pointer">
+              <div id="np-preview-ine-container" class="hidden pt-2">
+                <span class="text-[10px] text-slate-400 block mb-1">Vista previa INE cargada:</span>
+                <img id="np-preview-ine-img" src="" alt="INE Preview" class="h-28 rounded-lg border border-slate-700 object-cover">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">2. Condiciones del Préstamo</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Monto ($) *</label>
+              <input type="number" id="np-monto" oninput="calcularSimulacionCuotas()" step="50" min="100" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-emerald-400 font-bold focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Interés (%) *</label>
+              <input type="number" id="np-interes" oninput="calcularSimulacionCuotas()" value="20" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 font-bold focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Frecuencia *</label>
+              <select id="np-frecuencia" onchange="calcularSimulacionCuotas()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                <option value="semanal">Semanal</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="mensual">Mensual</option>
+                <option value="diario">Diario</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Número de Pagos *</label>
+              <input type="number" id="np-cuotas" oninput="calcularSimulacionCuotas()" value="4" min="1" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Fecha de Entrega *</label>
+              <input type="date" id="np-fecha-inicio" onchange="calcularSimulacionCuotas()" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400">Total: <strong id="sim-total-pagar" class="text-white">$0.00</strong></span>
+            <span class="text-xs text-slate-400">Cuota: <strong id="sim-monto-cuota" class="text-emerald-400 font-bold">$0.00</strong></span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3">
+          <button type="button" onclick="cerrarModalNuevoPrestamo()" class="px-4 py-2 text-xs text-slate-400 hover:bg-slate-800 rounded-xl">Cancelar</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs">Crear Préstamo & Contrato</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REAGENDAR COBRO -->
+  <div id="modal-reagendar" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-base text-white">Reagendar Cobro</h3>
+        <button onclick="cerrarModalReagendar()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <p id="reagendar-cliente-nombre" class="text-xs text-emerald-400 font-medium">Cliente</p>
+      <form onsubmit="confirmarReagendarCobro(event)" class="space-y-4">
+        <input type="hidden" id="reagendar-prestamo-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Nueva Fecha *</label>
+          <input type="date" id="reagendar-nueva-fecha" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center justify-end gap-2">
+          <button type="button" onclick="cerrarModalReagendar()" class="px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 rounded-lg">Cancelar</button>
+          <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONTRATO CREADO & WHATSAPP / PDF -->
+  <div id="modal-contrato-creado" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div class="text-center space-y-1 border-b border-slate-800 pb-3">
+        <div class="inline-flex bg-emerald-500/10 text-emerald-400 p-2.5 rounded-full mb-1"><i data-lucide="file-check" class="w-7 h-7"></i></div>
+        <h3 class="font-bold text-lg text-white">¡Préstamo y Contrato Creados!</h3>
+        <p class="text-xs text-slate-400">Descarga el PDF o envíalo por WhatsApp junto con el mensaje</p>
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-slate-300 uppercase">Mensaje para WhatsApp:</label>
+        <div id="contrato-preview-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-1 text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+        <button onclick="descargarContratoPDFActual()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <i data-lucide="file-down" class="w-4 h-4"></i> Descargar Contrato PDF
+        </button>
+        <button onclick="enviarContratoPorWhatsAppConAviso()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <i data-lucide="message-square" class="w-4 h-4"></i> Enviar por WhatsApp
+        </button>
+      </div>
+      <div class="text-center pt-1"><button onclick="cerrarModalContratoCreado()" class="text-xs text-slate-400 hover:text-white underline">Cerrar</button></div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR ABONO CON CALCULADORA PARCIAL -->
+  <div id="modal-pago" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="font-bold text-lg text-white">Registrar Abono Parcial</h3>
+          <p id="pago-modal-cliente" class="text-xs text-emerald-400 font-medium">Cliente</p>
+        </div>
+        <button onclick="cerrarModalPago()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span class="text-slate-400 block">Saldo Pendiente:</span>
+          <span id="pago-saldo-actual" class="font-bold text-slate-200">$0.00</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Cuota Sugerida:</span>
+          <span id="pago-cuota-sugerida" class="font-bold text-emerald-400">$0.00</span>
+        </div>
+      </div>
+
+      <form onsubmit="confirmarAbono(event)" class="space-y-4">
+        <input type="hidden" id="pago-prestamo-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Monto Entregado por el Cliente ($) *</label>
+          <input type="number" id="pago-monto-ingresado" oninput="calcularSimulacionAbonoParcial()" step="1" min="1" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div id="calculadora-parcial-box" class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1"></div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Nota (Opcional)</label>
+          <input type="text" id="pago-nota" placeholder="Ej. Abono parcial acordado" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="cerrarModalPago()" class="px-4 py-2 text-xs text-slate-400 hover:bg-slate-800 rounded-xl">Cancelar</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs">Guardar Abono y Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TICKET -->
+  <div id="modal-ticket" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
+      <div class="text-center space-y-1 border-b border-slate-800 pb-3">
+        <div class="inline-flex bg-emerald-500/10 text-emerald-400 p-2 rounded-full mb-1"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
+        <h3 class="font-bold text-base text-white">¡Abono Registrado!</h3>
+      </div>
+      <div id="printable-ticket" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-2 text-slate-300"></div>
+      <div class="space-y-2">
+        <button onclick="copiarTicketWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <i data-lucide="share-2" class="w-4 h-4"></i> Copiar WhatsApp
+        </button>
+        <button onclick="window.print()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Térmico
+        </button>
+        <button onclick="cerrarModalTicket()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-xl text-xs transition">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DETALLE CLIENTE & INE -->
+  <div id="modal-detalle-cliente" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 id="det-cliente-nombre" class="font-bold text-lg text-white">Cliente</h3>
+          <p id="det-cliente-tel" class="text-xs text-slate-400">Tel: --</p>
+        </div>
+        <button onclick="cerrarModalDetalleCliente()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="det-cliente-info-extra" class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5 flex flex-col justify-center"></div>
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-center space-y-2">
+          <span class="text-xs font-semibold text-emerald-400 block uppercase">Identificación (INE) Registrada</span>
+          <div id="det-ine-wrapper" class="flex justify-center">
+            <!-- Imagen INE -->
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Historial de Abonos</h4>
+        <div id="det-cliente-historial-abonos" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+      </div>
+
+      <div class="flex justify-end border-t border-slate-800 pt-3">
+        <button onclick="cerrarModalDetalleCliente()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-4 py-2 rounded-xl text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    let APP_DATA = {
+      capitalTotal: 0,
+      cajeroActual: 'Hervin (Mañana)',
+      contadorFolio: 0,
+      plantillas: {
+        contrato: "¡HOLA {nombre}! 📄✍️\nTu crédito en Préstamos Maki ha sido aprobado (Folio #{folio}):\n- Monto: ${monto}\n- Total: ${total}\n- Cuota: ${cuota} ({frecuencia})\n- Primer Cobro: {primerCobro}\n\nTe adjuntamos tu contrato oficial en PDF. ¡Gracias por tu confianza!",
+        recordatorio: "Hola {nombre}, te recordamos tu cuota de hoy en Préstamos Maki por ${cuota}. Saldo pendiente: ${saldo}. ¡Saludos!"
+      },
+      clientes: [],
+      prestamos: [],
+      pagos: [],
+      movimientosCaja: []
+    };
+
+    let filtroClienteActual = 'todos';
+    let ticketTextoActual = '';
+    let contratoTempActual = null;
+    let fotoIneTempBase64 = '';
+
+    function calcularFechaPrimerCobro(fechaEntregaStr, frecuencia) {
+      if (!fechaEntregaStr) return '';
+      const partes = fechaEntregaStr.split('-');
+      const d = new Date(partes[0], partes[1] - 1, partes[2]);
+      if (frecuencia === 'semanal') d.setDate(d.getDate() + 7);
+      else if (frecuencia === 'quincenal') d.setDate(d.getDate() + 15);
+      else if (frecuencia === 'mensual') d.setMonth(d.getMonth() + 1);
+      else if (frecuencia === 'diario') d.setDate(d.getDate() + 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarDatosDesdeStorage();
+      establecerFechaHoyInput();
+      actualizarInterfazCompleta();
+      lucide.createIcons();
+    });
+
+    function establecerFechaHoyInput() {
+      const hoy = new Date().toISOString().split('T')[0];
+      const npFecha = document.getElementById('np-fecha-inicio');
+      if (npFecha) npFecha.value = hoy;
+      const badgeFecha = document.getElementById('fecha-actual-badge');
+      if (badgeFecha) {
+        badgeFecha.textContent = new Date().toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+    }
+
+    function cargarDatosDesdeStorage() {
+      const datosGuardados = localStorage.getItem('PRESTAMOS_MAKI_DATA') || localStorage.getItem('PRESTAMOS_APP_DATA_PROMAX_INE');
+      if (datosGuardados) {
+        try {
+          APP_DATA = JSON.parse(datosGuardados);
+          if (!APP_DATA.plantillas) {
+            APP_DATA.plantillas = {
+              contrato: "¡HOLA {nombre}! 📄✍️\nTu crédito en Préstamos Maki ha sido aprobado (Folio #{folio}):\n- Monto: ${monto}\n- Total: ${total}\n- Cuota: ${cuota} ({frecuencia})\n- Primer Cobro: {primerCobro}\n\nTe adjuntamos tu contrato oficial en PDF. ¡Gracias por tu confianza!",
+              recordatorio: "Hola {nombre}, te recordamos tu cuota de hoy en Préstamos Maki por ${cuota}. Saldo pendiente: ${saldo}. ¡Saludos!"
+            };
+          }
+          if (!APP_DATA.cajeroActual) APP_DATA.cajeroActual = 'Hervin (Mañana)';
+          if (typeof APP_DATA.contadorFolio !== 'number') APP_DATA.contadorFolio = APP_DATA.prestamos.length;
+        } catch(e) { console.error(e); }
+      }
+      document.getElementById('tpl-contrato').value = APP_DATA.plantillas.contrato;
+      document.getElementById('tpl-recordatorio').value = APP_DATA.plantillas.recordatorio;
+      actualizarBotonCajeroUI();
+    }
+
+    function guardarDatosEnStorage() {
+      localStorage.setItem('PRESTAMOS_MAKI_DATA', JSON.stringify(APP_DATA));
+      actualizarInterfazCompleta();
+    }
+
+    function cambiarCajeroActivo() {
+      if (APP_DATA.cajeroActual === 'Hervin (Mañana)') {
+        APP_DATA.cajeroActual = 'Hiromi (Tarde)';
+      } else {
+        APP_DATA.cajeroActual = 'Hervin (Mañana)';
+      }
+      guardarDatosEnStorage();
+      actualizarBotonCajeroUI();
+    }
+
+    function actualizarBotonCajeroUI() {
+      document.getElementById('btn-cambiar-cajero-txt').textContent = APP_DATA.cajeroActual;
+      document.getElementById('header-cajero-actual').textContent = `Turno: ${APP_DATA.cajeroActual}`;
+    }
+
+    function guardarPlantillasConfig() {
+      APP_DATA.plantillas.contrato = document.getElementById('tpl-contrato').value;
+      APP_DATA.plantillas.recordatorio = document.getElementById('tpl-recordatorio').value;
+      guardarDatosEnStorage();
+      alert('¡Plantillas actualizadas con éxito!');
+    }
+
+    function procesarFotoINE(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        fotoIneTempBase64 = e.target.result;
+        const container = document.getElementById('np-preview-ine-container');
+        const img = document.getElementById('np-preview-ine-img');
+        img.src = fotoIneTempBase64;
+        container.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function actualizarInterfazCompleta() {
+      renderizarDashboard();
+      renderizarRutaCobro();
+      renderizarClientes();
+      renderizarHistorialPrestamos();
+      renderizarLibroCaja();
+      renderizarProyeccionCobros();
+      poblarSelectZonasRuta();
+      lucide.createIcons();
+    }
+
+    function renderizarDashboard() {
+      const capitalTotal = APP_DATA.capitalTotal || 0;
+      let prestadoCalle = 0;
+      let gananciaCobrada = 0;
+      let clientesMoraSet = new Set();
+      let montoMora = 0;
+      let prestamosLiquidados = 0;
+      const hoyStr = new Date().toISOString().split('T')[0];
+      let cobrosHoyCount = 0;
+      let montoHoyTotal = 0;
+
+      APP_DATA.prestamos.forEach(p => {
+        if (p.estado === 'activo') {
+          prestadoCalle += p.saldoPendiente;
+          if (p.proximoPago === hoyStr) {
+            cobrosHoyCount++;
+            montoHoyTotal += p.montoCuota;
+          } else if (p.proximoPago < hoyStr && p.saldoPendiente > 0) {
+            clientesMoraSet.add(p.clienteId);
+            montoMora += p.montoCuota;
+          }
+        } else if (p.estado === 'liquidado') { prestamosLiquidados++; }
+      });
+
+      APP_DATA.pagos.forEach(p => { gananciaCobrada += (p.monto * 0.15); });
+      const cajaDisponible = Math.max(0, capitalTotal - prestadoCalle);
+
+      document.getElementById('header-caja').textContent = `$${cajaDisponible.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+      document.getElementById('dash-capital-total').textContent = `$${capitalTotal.toLocaleString('es-MX', {minimumFractionDigits:2})} MXN`;
+      document.getElementById('dash-caja-disponible').textContent = `$${cajaDisponible.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+      document.getElementById('dash-prestado-calle').textContent = `$${prestadoCalle.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+      document.getElementById('dash-ganancia-cobrada').textContent = `$${gananciaCobrada.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+
+      document.getElementById('dash-clientes-activos').textContent = APP_DATA.prestamos.filter(p => p.estado === 'activo').length;
+      document.getElementById('dash-total-clientes').textContent = `${APP_DATA.clientes.length} registrados`;
+      document.getElementById('dash-cobros-hoy').textContent = cobrosHoyCount;
+      document.getElementById('dash-monto-hoy').textContent = `Por cobrar: $${montoHoyTotal.toLocaleString('es-MX')}`;
+      document.getElementById('dash-clientes-mora').textContent = clientesMoraSet.size;
+      document.getElementById('dash-monto-mora').textContent = `$${montoMora.toLocaleString('es-MX')} en atraso`;
+      document.getElementById('dash-prestamos-liquidados').textContent = prestamosLiquidados;
+
+      const badgeRuta = document.getElementById('badge-hoy');
+      if (cobrosHoyCount > 0) {
+        badgeRuta.textContent = cobrosHoyCount;
+        badgeRuta.classList.remove('hidden');
+      } else { badgeRuta.classList.add('hidden'); }
+    }
+
+    function renderizarProyeccionCobros() {
+      const container = document.getElementById('proyeccion-cobros-container');
+      if (!container) return;
+      let html = '';
+      const hoy = new Date();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(hoy);
+        d.setDate(hoy.getDate() + i);
+        const fechaStr = d.toISOString().split('T')[0];
+        const nombreDia = d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+        let totalDia = 0;
+        APP_DATA.prestamos.forEach(p => {
+          if (p.estado === 'activo' && p.proximoPago === fechaStr) totalDia += p.montoCuota;
+        });
+        html += `<div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center space-y-1"><span class="text-[10px] uppercase text-slate-400 font-semibold block">${nombreDia}</span><span class="text-sm font-bold ${totalDia > 0 ? 'text-emerald-400' : 'text-slate-600'}">$${totalDia.toFixed(0)}</span></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function poblarSelectZonasRuta() {
+      const select = document.getElementById('filtro-zona-ruta');
+      if (!select) return;
+      const zonasSet = new Set();
+      APP_DATA.clientes.forEach(c => { if (c.zona) zonasSet.add(c.zona); });
+      let optHtml = '<option value="todas">Todas las Zonas</option>';
+      zonasSet.forEach(z => { optHtml += `<option value="${z}">${z}</option>`; });
+      select.innerHTML = optHtml;
+    }
+
+    function abrirModalCapital() {
+      document.getElementById('input-monto-capital').value = APP_DATA.capitalTotal || '';
+      document.getElementById('modal-capital').classList.remove('hidden');
+    }
+    function cerrarModalCapital() { document.getElementById('modal-capital').classList.add('hidden'); }
+    function guardarNuevoCapital(e) {
+      e.preventDefault();
+      APP_DATA.capitalTotal = parseFloat(document.getElementById('input-monto-capital').value) || 0;
+      guardarDatosEnStorage();
+      cerrarModalCapital();
+    }
+
+    function cambiarTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-emerald-400', 'bg-emerald-950/40', 'border', 'border-emerald-800/50');
+        btn.classList.add('text-slate-400');
+      });
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('text-emerald-400', 'bg-emerald-950/40', 'border', 'border-emerald-800/50');
+      }
+    }
+
+    function calcularSimulacionCuotas() {
+      const monto = parseFloat(document.getElementById('np-monto').value) || 0;
+      const interesPorcentaje = parseFloat(document.getElementById('np-interes').value) || 0;
+      const cuotas = parseInt(document.getElementById('np-cuotas').value) || 1;
+      const totalPagar = monto + (monto * (interesPorcentaje / 100));
+      const montoCuota = cuotas > 0 ? (totalPagar / cuotas) : 0;
+      document.getElementById('sim-total-pagar').textContent = `$${totalPagar.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+      document.getElementById('sim-monto-cuota').textContent = `$${montoCuota.toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+    }
+
+    function abrirModalNuevoPrestamo() {
+      fotoIneTempBase64 = '';
+      document.getElementById('np-foto-ine').value = '';
+      document.getElementById('np-preview-ine-container').classList.add('hidden');
+      document.getElementById('modal-nuevo-prestamo').classList.remove('hidden');
+      calcularSimulacionCuotas();
+    }
+    function cerrarModalNuevoPrestamo() { document.getElementById('modal-nuevo-prestamo').classList.add('hidden'); }
+
+    function crearNuevoPrestamo(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('np-nombre').value.trim();
+      const telefono = document.getElementById('np-telefono').value.trim();
+      const zona = document.getElementById('np-zona').value.trim() || 'General';
+      const aval = document.getElementById('np-aval').value.trim();
+      const direccion = document.getElementById('np-direccion').value.trim();
+      const monto = parseFloat(document.getElementById('np-monto').value);
+      const interesPorcentaje = parseFloat(document.getElementById('np-interes').value);
+      const frecuencia = document.getElementById('np-frecuencia').value;
+      const numCuotas = parseInt(document.getElementById('np-cuotas').value);
+      const fechaEntrega = document.getElementById('np-fecha-inicio').value;
+
+      const totalPagar = monto + (monto * (interesPorcentaje / 100));
+      const montoCuota = totalPagar / numCuotas;
+      const primerCobro = calcularFechaPrimerCobro(fechaEntrega, frecuencia);
+
+      APP_DATA.contadorFolio = (APP_DATA.contadorFolio || 0) + 1;
+      const folioStr = String(APP_DATA.contadorFolio).padStart(3, '0');
+
+      let cliente = APP_DATA.clientes.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+      if (!cliente) {
+        cliente = { id: 'cli_' + Date.now(), nombre, telefono, zona, aval, direccion, fotoIne: fotoIneTempBase64, fechaRegistro: new Date().toISOString() };
+        APP_DATA.clientes.push(cliente);
+      } else {
+        if (telefono) cliente.telefono = telefono;
+        if (zona) cliente.zona = zona;
+        if (aval) cliente.aval = aval;
+        if (direccion) cliente.direccion = direccion;
+        if (fotoIneTempBase64) cliente.fotoIne = fotoIneTempBase64;
+      }
+
+      const nuevoPrestamo = {
+        id: 'pres_' + Date.now(), folio: folioStr, clienteId: cliente.id, montoPrestado: monto, interesPorcentaje, totalPagar, saldoPendiente: totalPagar, numCuotas, montoCuota, frecuencia, fechaInicio: fechaEntrega, proximoPago: primerCobro, estado: 'activo'
+      };
+
+      APP_DATA.prestamos.push(nuevoPrestamo);
+      APP_DATA.movimientosCaja.push({
+        id: 'mov_' + Date.now(), cajero: APP_DATA.cajeroActual, tipo: 'salida', concepto: `Préstamo #${folioStr} a ${cliente.nombre}`, monto, fecha: new Date().toISOString()
+      });
+
+      guardarDatosEnStorage();
+      cerrarModalNuevoPrestamo();
+      e.target.reset();
+      establecerFechaHoyInput();
+
+      contratoTempActual = { prestamo: nuevoPrestamo, cliente };
+      abrirModalContratoCreado(nuevoPrestamo, cliente);
+    }
+
+    function abrirModalContratoCreado(prestamo, cliente) {
+      let msg = APP_DATA.plantillas.contrato || "";
+      msg = msg.replace('{folio}', prestamo.folio || '001')
+               .replace('{nombre}', cliente.nombre.toUpperCase())
+               .replace('{monto}', prestamo.montoPrestado.toFixed(2))
+               .replace('{total}', prestamo.totalPagar.toFixed(2))
+               .replace('{cuota}', prestamo.montoCuota.toFixed(2))
+               .replace('{frecuencia}', prestamo.frecuencia.toUpperCase())
+               .replace('{numCuotas}', prestamo.numCuotas)
+               .replace('{primerCobro}', prestamo.proximoPago.split('-').reverse().join('/'));
+
+      document.getElementById('contrato-preview-box').textContent = msg;
+      document.getElementById('modal-contrato-creado').classList.remove('hidden');
+    }
+    function cerrarModalContratoCreado() { document.getElementById('modal-contrato-creado').classList.add('hidden'); contratoTempActual = null; }
+
+    function enviarContratoPorWhatsAppConAviso() {
+      if (!contratoTempActual) return;
+      const { prestamo, cliente } = contratoTempActual;
+      const telLimpio = cliente.telefono ? cliente.telefono.replace(/\D/g, '') : '';
+      let msg = APP_DATA.plantillas.contrato || "";
+      msg = msg.replace('{folio}', prestamo.folio || '001')
+               .replace('{nombre}', cliente.nombre.toUpperCase())
+               .replace('{monto}', prestamo.montoPrestado.toFixed(2))
+               .replace('{total}', prestamo.totalPagar.toFixed(2))
+               .replace('{cuota}', prestamo.montoCuota.toFixed(2))
+               .replace('{frecuencia}', prestamo.frecuencia.toUpperCase())
+               .replace('{numCuotas}', prestamo.numCuotas)
+               .replace('{primerCobro}', prestamo.proximoPago.split('-').reverse().join('/'));
+
+      generarPDFContrato(prestamo, cliente);
+
+      if (telLimpio) {
+        window.open(`https://wa.me/52${telLimpio}?text=${encodeURIComponent(msg)}`, '_blank');
+      } else {
+        alert('Cliente sin teléfono registrado.');
+      }
+    }
+
+    function descargarContratoPDFActual() {
+      if (!contratoTempActual) return;
+      generarPDFContrato(contratoTempActual.prestamo, contratoTempActual.cliente);
+    }
+
+    function generarPDFContrato(prestamo, cliente) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 40, 'F');
+      doc.setTextColor(52, 211, 153); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+      doc.text('PRÉSTAMOS MAKI — CONTRATO DE CRÉDITO', 15, 22);
+      doc.setTextColor(226, 232, 240); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text(`Zona: ${cliente.zona || 'General'} | Folio Oficial: #${prestamo.folio || '001'}`, 15, 30);
+
+      doc.setTextColor(15, 23, 42); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+      doc.text('1. INFORMACIÓN DEL CLIENTE Y ZONA', 15, 52);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text(`Nombre Completo: ${cliente.nombre}`, 15, 60);
+      doc.text(`Teléfono: ${cliente.telefono || 'N/A'}`, 15, 67);
+      doc.text(`Zona / Colonia: ${cliente.zona || 'N/A'}`, 15, 74);
+      doc.text(`Aval / Fiador: ${cliente.aval || 'N/A'}`, 15, 81);
+      doc.text(`Dirección: ${cliente.direccion || 'N/A'}`, 15, 88);
+
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+      doc.text('2. CONDICIONES Y PLAN DE PAGOS DEL CRÉDITO', 15, 102);
+      const detallesData = [
+        ['Folio de Contrato', `#${prestamo.folio || '001'}`],
+        ['Monto Prestado', `$${prestamo.montoPrestado.toFixed(2)} MXN`],
+        ['Total a Pagar con Intereses', `$${prestamo.totalPagar.toFixed(2)} MXN`],
+        ['Modalidad', prestamo.frecuencia.toUpperCase()],
+        ['Número de Cuotas', `${prestamo.numCuotas} pagos de $${prestamo.montoCuota.toFixed(2)} MXN`],
+        ['Fecha de Entrega', prestamo.fechaInicio.split('-').reverse().join('/')],
+        ['Fecha del Primer Cobro', prestamo.proximoPago.split('-').reverse().join('/')]
+      ];
+      doc.autoTable({ startY: 107, head: [['Concepto', 'Detalle']], body: detallesData, theme: 'grid' });
+
+      let currentY = doc.lastAutoTable.finalY + 15;
+      doc.setFontSize(9); doc.setFont('helvetica', 'italic');
+      doc.text('Términos y Condiciones: El deudor se compromete a realizar los pagos en las fechas establecidas con Préstamos Maki.', 15, currentY);
+
+      let firmaY = currentY + 30;
+      doc.setDrawColor(100, 116, 139);
+      doc.line(25, firmaY, 85, firmaY);
+      doc.line(125, firmaY, 185, firmaY);
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text('PRÉSTAMOS MAKI (ACREEDOR)', 30, firmaY + 6);
+      doc.text('FIRMA DEL CLIENTE / DEUDOR', 123, firmaY + 6);
+
+      doc.save(`PrestamosMaki_Folio_${prestamo.folio || '001'}_${cliente.nombre.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    function renderizarRutaCobro() {
+      const contenedor = document.getElementById('contenedor-ruta-cobros');
+      const filtroZona = document.getElementById('filtro-zona-ruta').value;
+      const hoyStr = new Date().toISOString().split('T')[0];
+
+      const cobrosHoy = APP_DATA.prestamos.filter(p => {
+        if (p.estado !== 'activo' || p.proximoPago > hoyStr) return false;
+        const c = APP_DATA.clientes.find(cli => cli.id === p.clienteId);
+        if (!c) return false;
+        if (filtroZona !== 'todas' && c.zona !== filtroZona) return false;
+        return true;
+      });
+
+      if (cobrosHoy.length === 0) {
+        contenedor.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3"><div class="inline-flex bg-emerald-500/10 text-emerald-400 p-3 rounded-full"><i data-lucide="check-circle-2" class="w-8 h-8"></i></div><h4 class="font-bold text-slate-200">No hay cobros pendientes para hoy en esta zona</h4></div>`;
+        return;
+      }
+
+      const gruposZonas = {};
+      cobrosHoy.forEach(p => {
+        const c = APP_DATA.clientes.find(cli => cli.id === p.clienteId);
+        const z = c.zona || 'Sin Zona';
+        if (!gruposZonas[z]) gruposZonas[z] = [];
+        gruposZonas[z].push({ p, c });
+      });
+
+      let html = '';
+      for (const [zona, items] of Object.entries(gruposZonas)) {
+        html += `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h4 class="font-bold text-sm text-emerald-400 flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4"></i> Zona: ${zona} (${items.length} cobros)</h4>
+            </div>
+            <div class="space-y-2">
+        `;
+
+        items.forEach(({ p, c }) => {
+          const esAtrasado = p.proximoPago < hoyStr;
+          html += `
+            <div class="bg-slate-950 border ${esAtrasado ? 'border-rose-800/60' : 'border-slate-800'} rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h5 class="font-bold text-sm text-white">${c.nombre} <span class="text-xs text-emerald-400 font-mono">(Folio #${p.folio || '001'})</span></h5>
+                  ${esAtrasado ? '<span class="bg-rose-500/20 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full">EN MORA</span>' : '<span class="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full">HOY</span>'}
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">Cuota: <strong class="text-emerald-400">$${p.montoCuota.toFixed(2)}</strong> • Saldo: $${p.saldoPendiente.toFixed(2)} • Tel: ${c.telefono || 'N/A'}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="abrirModalReagendar('${p.id}', '${c.nombre}')" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2 rounded-xl" title="Reagendar"><i data-lucide="calendar-clock" class="w-4 h-4"></i></button>
+                <button onclick="abrirModalPago('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5"><i data-lucide="dollar-sign" class="w-3.5 h-3.5"></i> Abonar</button>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div></div>`;
+      }
+
+      contenedor.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function abrirModalReagendar(prestamoId, nombreCliente) {
+      document.getElementById('reagendar-prestamo-id').value = prestamoId;
+      document.getElementById('reagendar-cliente-nombre').textContent = nombreCliente;
+      document.getElementById('reagendar-nueva-fecha').value = new Date().toISOString().split('T')[0];
+      document.getElementById('modal-reagendar').classList.remove('hidden');
+    }
+    function cerrarModalReagendar() { document.getElementById('modal-reagendar').classList.add('hidden'); }
+    function confirmarReagendarCobro(e) {
+      e.preventDefault();
+      const pId = document.getElementById('reagendar-prestamo-id').value;
+      const nuevaF = document.getElementById('reagendar-nueva-fecha').value;
+      const prestamo = APP_DATA.prestamos.find(p => p.id === pId);
+      if (prestamo) { prestamo.proximoPago = nuevaF; guardarDatosEnStorage(); }
+      cerrarModalReagendar();
+    }
+
+    function enviarRecordatoriosWhatsAppMasivo() {
+      const hoyStr = new Date().toISOString().split('T')[0];
+      const cobrosHoy = APP_DATA.prestamos.filter(p => p.estado === 'activo' && p.proximoPago <= hoyStr);
+      if (cobrosHoy.length === 0) { alert('No hay cobros hoy.'); return; }
+      cobrosHoy.forEach(p => {
+        const c = APP_DATA.clientes.find(cli => cli.id === p.clienteId);
+        if (c && c.telefono) {
+          let msg = APP_DATA.plantillas.recordatorio || "";
+          msg = msg.replace('{nombre}', c.nombre).replace('{cuota}', p.montoCuota.toFixed(2)).replace('{saldo}', p.saldoPendiente.toFixed(2));
+          window.open(`https://wa.me/52${c.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+      });
+    }
+
+    let prestamoPagoActual = null;
+    function abrirModalPago(prestamoId) {
+      prestamoPagoActual = APP_DATA.prestamos.find(p => p.id === prestamoId);
+      if (!prestamoPagoActual) return;
+      const cliente = APP_DATA.clientes.find(c => c.id === prestamoPagoActual.clienteId) || { nombre: 'Cliente' };
+
+      document.getElementById('pago-prestamo-id').value = prestamoPagoActual.id;
+      document.getElementById('pago-modal-cliente').textContent = `${cliente.nombre} (Folio #${prestamoPagoActual.folio || '001'})`;
+      document.getElementById('pago-saldo-actual').textContent = `$${prestamoPagoActual.saldoPendiente.toFixed(2)}`;
+      document.getElementById('pago-cuota-sugerida').textContent = `$${prestamoPagoActual.montoCuota.toFixed(2)}`;
+      document.getElementById('pago-monto-ingresado').value = Math.min(prestamoPagoActual.montoCuota, prestamoPagoActual.saldoPendiente).toFixed(2);
+      
+      calcularSimulacionAbonoParcial();
+      document.getElementById('modal-pago').classList.remove('hidden');
+    }
+    function cerrarModalPago() { document.getElementById('modal-pago').classList.add('hidden'); prestamoPagoActual = null; }
+
+    function calcularSimulacionAbonoParcial() {
+      if (!prestamoPagoActual) return;
+      const montoIngresado = parseFloat(document.getElementById('pago-monto-ingresado').value) || 0;
+      const nuevoSaldo = Math.max(0, prestamoPagoActual.saldoPendiente - montoIngresado);
+      const box = document.getElementById('calculadora-parcial-box');
+
+      if (montoIngresado >= prestamoPagoActual.montoCuota) {
+        box.innerHTML = `<p class="text-emerald-400 font-semibold">✅ Abono cubre o supera la cuota regular. Quedará saldo pendiente de $${nuevoSaldo.toFixed(2)}</p>`;
+      } else {
+        const diferencia = prestamoPagoActual.montoCuota - montoIngresado;
+        box.innerHTML = `<p class="text-amber-400 font-semibold">⚠️ Abono Parcial (Faltan $${diferencia.toFixed(2)} para la cuota completa). Nuevo saldo: $${nuevoSaldo.toFixed(2)}</p>`;
+      }
+    }
+
+    function confirmarAbono(e) {
+      e.preventDefault();
+      if (!prestamoPagoActual) return;
+      const montoAbono = parseFloat(document.getElementById('pago-monto-ingresado').value);
+      const nota = document.getElementById('pago-nota').value.trim();
+      const cliente = APP_DATA.clientes.find(c => c.id === prestamoPagoActual.clienteId) || { nombre: 'Cliente' };
+
+      prestamoPagoActual.saldoPendiente = Math.max(0, prestamoPagoActual.saldoPendiente - montoAbono);
+      if (prestamoPagoActual.saldoPendiente <= 0) {
+        prestamoPagoActual.estado = 'liquidado';
+        prestamoPagoActual.saldoPendiente = 0;
+      } else {
+        prestamoPagoActual.proximoPago = calcularFechaPrimerCobro(prestamoPagoActual.proximoPago, prestamoPagoActual.frecuencia);
+      }
+
+      const nuevoPago = {
+        id: 'pago_' + Date.now(), prestamoId: prestamoPagoActual.id, clienteNombre: cliente.nombre, folio: prestamoPagoActual.folio, monto: montoAbono, fecha: new Date().toISOString(), nota, saldoRestante: prestamoPagoActual.saldoPendiente, cajero: APP_DATA.cajeroActual
+      };
+
+      APP_DATA.pagos.push(nuevoPago);
+      APP_DATA.movimientosCaja.push({
+        id: 'mov_' + Date.now(), cajero: APP_DATA.cajeroActual, tipo: 'ingreso', concepto: `Abono (Folio #${prestamoPagoActual.folio}) - ${cliente.nombre}`, monto: montoAbono, fecha: new Date().toISOString()
+      });
+
+      guardarDatosEnStorage();
+      cerrarModalPago();
+      mostrarTicketModal(nuevoPago, cliente);
+    }
+
+    function mostrarTicketModal(pago, cliente) {
+      ticketTextoActual = `*COMPROBANTE — PRÉSTAMOS MAKI* 🧾\n------------------------------\n👤 *Cliente:* ${cliente.nombre}\n🔢 *Folio:* #${pago.folio || '001'}\n💵 *Monto Abonado:* $${pago.monto.toFixed(2)} MXN\n👤 *Cajero:* ${pago.cajero}\n📉 *Saldo Restante:* $${pago.saldoRestante.toFixed(2)} MXN\n------------------------------\n¡Gracias por tu pago! 🙌`.trim();
+
+      document.getElementById('printable-ticket').innerHTML = `
+        <div class="text-center font-bold text-emerald-400 border-b border-slate-800 pb-1 mb-2">PRÉSTAMOS MAKI</div>
+        <p><strong>Cliente:</strong> ${cliente.nombre}</p>
+        <p><strong>Folio:</strong> <span class="text-emerald-400 font-mono">#${pago.folio || '001'}</span></p>
+        <p><strong>Abono:</strong> <span class="text-emerald-400 font-bold">$${pago.monto.toFixed(2)}</span></p>
+        <p><strong>Cajero:</strong> ${pago.cajero}</p>
+        <p><strong>Saldo Restante:</strong> <span class="text-amber-400 font-bold">$${pago.saldoRestante.toFixed(2)}</span></p>
+      `;
+      document.getElementById('modal-ticket').classList.remove('hidden');
+    }
+    function cerrarModalTicket() { document.getElementById('modal-ticket').classList.add('hidden'); }
+    function copiarTicketWhatsApp() { navigator.clipboard.writeText(ticketTextoActual).then(() => alert('¡Copiado!')); }
+
+    function renderizarLibroCaja() {
+      const tbody = document.getElementById('tabla-libro-caja');
+      const filtroTipo = document.getElementById('filtro-caja-tipo').value;
+      let movimientos = APP_DATA.movimientosCaja || [];
+      if (filtroTipo !== 'todos') movimientos = movimientos.filter(m => m.tipo === filtroTipo);
+
+      if (movimientos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-xs text-slate-500">No hay movimientos.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = movimientos.slice().reverse().map(m => `
+        <tr class="hover:bg-slate-950/40 transition text-xs">
+          <td class="p-4 text-slate-400">${new Date(m.fecha).toLocaleString('es-MX')}</td>
+          <td class="p-4 font-semibold text-slate-300">${m.cajero || 'Hervin (Mañana)'}</td>
+          <td class="p-4">${m.tipo === 'ingreso' ? '<span class="bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full">ENTRADA</span>' : '<span class="bg-rose-500/20 text-rose-400 font-bold px-2 py-0.5 rounded-full">SALIDA</span>'}</td>
+          <td class="p-4 font-semibold text-slate-200">${m.concepto}</td>
+          <td class="p-4 text-right font-bold ${m.tipo === 'ingreso' ? 'text-emerald-400' : 'text-rose-400'}">${m.tipo === 'ingreso' ? '+' : '-'}$${m.monto.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function descargarCorteCajaPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16); doc.text('PRÉSTAMOS MAKI — CORTE DE CAJA Y TURNOS', 15, 20);
+      const filas = (APP_DATA.movimientosCaja || []).slice().reverse().map(m => [new Date(m.fecha).toLocaleString('es-MX'), m.cajero || 'Hervin', m.tipo.toUpperCase(), m.concepto, `$${m.monto.toFixed(2)}`]);
+      doc.autoTable({ startY: 30, head: [['Fecha / Hora', 'Cajero', 'Tipo', 'Concepto', 'Monto']], body: filas, theme: 'grid' });
+      doc.save(`PrestamosMaki_Corte_Caja_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+
+    function filtrarClientes(tipo) {
+      filtroClienteActual = tipo;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-slate-950', 'font-bold');
+        btn.classList.add('bg-slate-800', 'text-slate-300', 'font-medium');
+      });
+      document.getElementById(`filter-btn-${tipo}`).classList.add('bg-emerald-600', 'text-slate-950', 'font-bold');
+      renderizarClientes();
+    }
+
+    function renderizarClientes() {
+      const contenedor = document.getElementById('contenedor-lista-clientes');
+      const textoBusqueda = (document.getElementById('input-buscar-cliente').value || '').toLowerCase();
+      const hoyStr = new Date().toISOString().split('T')[0];
+
+      let filtrados = APP_DATA.clientes.filter(c => {
+        const coincide = c.nombre.toLowerCase().includes(textoBusqueda) || (c.telefono && c.telefono.includes(textoBusqueda)) || (c.zona && c.zona.toLowerCase().includes(textoBusqueda));
+        if (!coincide) return false;
+        const prestamosC = APP_DATA.prestamos.filter(p => p.clienteId === c.id);
+        const activo = prestamosC.some(p => p.estado === 'activo');
+        const mora = prestamosC.some(p => p.estado === 'activo' && p.proximoPago < hoyStr);
+        const liquido = prestamosC.length > 0 && prestamosC.every(p => p.estado === 'liquidado');
+
+        if (filtroClienteActual === 'activos') return activo && !mora;
+        if (filtroClienteActual === 'mora') return mora;
+        if (filtroClienteActual === 'liquidados') return liquido;
+        return true;
+      });
+
+      if (filtrados.length === 0) {
+        contenedor.innerHTML = `<div class="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-xs text-slate-500">No se encontraron clientes.</div>`;
+        return;
+      }
+
+      contenedor.innerHTML = filtrados.map(c => {
+        const prestamos = APP_DATA.prestamos.filter(p => p.clienteId === c.id);
+        const prestamoActivo = prestamos.find(p => p.estado === 'activo');
+        const mora = prestamoActivo && prestamoActivo.proximoPago < hoyStr;
+
+        let badge = '<span class="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full">🟢 Puntual</span>';
+        if (mora) badge = '<span class="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded-full">🔴 Mora</span>';
+        else if (!prestamoActivo) badge = '<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">⚪ Sin Préstamo</span>';
+
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-md">
+            <div class="space-y-2">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h4 class="font-bold text-base text-white">${c.nombre}</h4>
+                  <p class="text-xs text-slate-400"><i data-lucide="map-pin" class="w-3 h-3 inline"></i> Zona: <strong class="text-emerald-400">${c.zona || 'General'}</strong></p>
+                </div>
+                ${badge}
+              </div>
+              <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 text-xs">
+                <div class="flex justify-between"><span class="text-slate-400">Saldo:</span><span class="font-bold text-emerald-400">$${prestamoActivo ? prestamoActivo.saldoPendiente.toFixed(2) : '0.00'}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Próximo Cobro:</span><span class="font-bold text-amber-400">${prestamoActivo ? prestamoActivo.proximoPago.split('-').reverse().join('/') : 'N/A'}</span></div>
+              </div>
+              ${c.fotoIne ? '<span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800"><i data-lucide="check" class="w-3 h-3"></i> INE Registrada</span>' : '<span class="inline-flex items-center gap-1 text-[10px] text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800">Sin INE</span>'}
+            </div>
+            <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
+              <button onclick="verDetalleCliente('${c.id}')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Perfil & INE</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function renderizarHistorialPrestamos() {
+      const tbody = document.getElementById('tabla-historial-prestamos');
+      if (APP_DATA.prestamos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-xs text-slate-500">No hay préstamos ni contratos en el archivo general.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = APP_DATA.prestamos.map(p => {
+        const c = APP_DATA.clientes.find(cli => cli.id === p.clienteId) || { nombre: 'Borrado' };
+        return `
+          <tr class="hover:bg-slate-950/40 transition">
+            <td class="p-4 font-mono font-bold text-emerald-400">#${p.folio || '001'}</td>
+            <td class="p-4 font-bold text-slate-200">${c.nombre}</td>
+            <td class="p-4 text-slate-300">$${p.montoPrestado.toFixed(2)}</td>
+            <td class="p-4 font-semibold text-slate-200">$${p.totalPagar.toFixed(2)}</td>
+            <td class="p-4 font-bold text-emerald-400">$${p.saldoPendiente.toFixed(2)}</td>
+            <td class="p-4 text-xs capitalize text-slate-400">${p.frecuencia} (${p.numCuotas})</td>
+            <td class="p-4 text-xs font-bold text-amber-400">${p.proximoPago.split('-').reverse().join('/')}</td>
+            <td class="p-4">${p.estado === 'activo' ? '<span class="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Activo</span>' : '<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full">Liquidado</span>'}</td>
+            <td class="p-4 text-right flex items-center justify-end gap-2">
+              <button onclick="generarPDFContrato(APP_DATA.prestamos.find(pr=>pr.id==='${p.id}'), APP_DATA.clientes.find(cl=>cl.id==='${p.clienteId}'))" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" title="Descargar Contrato PDF"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Contrato PDF</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function verDetalleCliente(clienteId) {
+      const c = APP_DATA.clientes.find(cli => cli.id === clienteId);
+      if (!c) return;
+      document.getElementById('det-cliente-nombre').textContent = c.nombre;
+      document.getElementById('det-cliente-tel').textContent = `Tel: ${c.telefono || 'N/A'} | Zona: ${c.zona || 'General'}`;
+      document.getElementById('det-cliente-info-extra').innerHTML = `
+        <p><strong>Aval:</strong> ${c.aval || 'N/A'}</p>
+        <p><strong>Dirección:</strong> ${c.direccion || 'N/A'}</p>
+        <p><strong>Registrado:</strong> ${new Date(c.fechaRegistro).toLocaleDateString('es-MX')}</p>
+      `;
+
+      const ineWrapper = document.getElementById('det-ine-wrapper');
+      if (c.fotoIne) {
+        ineWrapper.innerHTML = `<img src="${c.fotoIne}" alt="INE de ${c.nombre}" class="h-36 rounded-xl border border-slate-700 object-cover shadow-md cursor-pointer hover:scale-105 transition" onclick="window.open(this.src)">`;
+      } else {
+        ineWrapper.innerHTML = `<p class="text-xs text-slate-500 py-6">No se registró foto de INE para este cliente.</p>`;
+      }
+      
+      const pagosC = APP_DATA.pagos.filter(pg => {
+        const pr = APP_DATA.prestamos.find(x => x.id === pg.prestamoId);
+        return pr && pr.clienteId === clienteId;
+      });
+
+      const contH = document.getElementById('det-cliente-historial-abonos');
+      contH.innerHTML = pagosC.length === 0 ? '<p class="text-xs text-slate-500">Sin abonos.</p>' : pagosC.map(pg => `<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between text-xs"><div><span class="text-emerald-400 font-bold">$${pg.monto.toFixed(2)}</span> (Folio #${pg.folio || '001'})</div><span class="text-slate-400">Saldo: $${pg.saldoRestante.toFixed(2)}</span></div>`).join('');
+      document.getElementById('modal-detalle-cliente').classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function cerrarModalDetalleCliente() { document.getElementById('modal-detalle-cliente').classList.add('hidden'); }
+
+    function exportarDatosJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(APP_DATA, null, 2));
+      const anchor = document.createElement('a');
+      anchor.setAttribute("href", dataStr);
+      anchor.setAttribute("download", `Respaldo_Prestamos_Maki_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    }
+
+    function importarDatosJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const imp = JSON.parse(evt.target.result);
+          if (imp) { APP_DATA = imp; guardarDatosEnStorage(); alert('¡Respaldo importado!'); }
+        } catch(err) { alert('Error al leer JSON.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function vaciarBaseDeDatosCompleta() {
+      if (confirm('¿Borrar todo el sistema?')) {
+        APP_DATA = { capitalTotal: 0, cajeroActual: 'Hervin (Mañana)', contadorFolio: 0, plantillas: APP_DATA.plantillas, clientes: [], prestamos: [], pagos: [], movimientosCaja: [] };
+        guardarDatosEnStorage();
+        alert('Base vaciada.');
+      }
+    }
+  </script>
+</body>
+</html>
